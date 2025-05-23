@@ -17,7 +17,7 @@ namespace SeerD.Services
         private readonly ManagedAppConfig _config;
         private readonly ILogger _logger;
         private Process? _process;
-        private CancellationTokenSource _cts;
+        private CancellationTokenSource? _cts;
         private StreamWriter _logWriter;
 
         public ManagedAppConfig Config => _config;
@@ -68,10 +68,13 @@ namespace SeerD.Services
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
                 };
 
-                _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                _process = new Process { 
+                    StartInfo = psi, 
+                    EnableRaisingEvents = true,
+                };
 
                 _process.OutputDataReceived += (s, e) =>
                 {
@@ -93,8 +96,8 @@ namespace SeerD.Services
                 };
                 _process.Exited += async (s, e) =>
                 {
-                    _logger.LogWarning($"[{_config.Name}] Processo finalizado inesperadamente. Reiniciando...");
-                    _logWriter?.WriteLine($"[SYS][{DateTime.Now:HH:mm:ss}] Processo finalizado inesperadamente. Reiniciando...");
+                    _logger.LogWarning($"[{_config.Name}] Processo finalizado.");
+                    _logWriter?.WriteLine($"[SYS][{DateTime.Now:HH:mm:ss}] Processo finalizado.");
                     _logWriter?.Flush();
                     _logWriter?.Close();
 
@@ -104,7 +107,7 @@ namespace SeerD.Services
                 _process.Start();
                 _process.BeginOutputReadLine();
                 _process.BeginErrorReadLine();
-
+                
                 await Task.CompletedTask;
             }
             catch (Exception ex)
@@ -138,7 +141,7 @@ namespace SeerD.Services
                     _process.Dispose();
                     _process = null;
                 }
-                _cts?.TryReset();
+                _cts = null;
             }
             catch (Exception ex)
             {

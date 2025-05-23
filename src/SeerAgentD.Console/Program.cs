@@ -44,25 +44,6 @@ namespace SeerD
                     .Build()
                     .Run();
             }
-
-            string? logPath = Path.Combine(AppContext.BaseDirectory, "Logs", "seer.log");
-            if (logPath != null)
-            {
-                List<string> lines = new();
-                using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (var reader = new StreamReader(fs))
-                {
-                    string? line;
-                    while ((line = reader.ReadLine()) != null)
-                        lines.Add(line);
-                }
-                foreach (var line in lines.Skip(Math.Max(0, lines.Count - 40)))
-                    Console.WriteLine(line);
-            }
-            else
-            {
-                Console.WriteLine("Nenhum log encontrado.");
-            }
         }
     }
 }
