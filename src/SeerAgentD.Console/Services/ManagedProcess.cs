@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -18,6 +19,9 @@ namespace SeerD.Services
         private Process _process;
         private CancellationTokenSource _cts;
         private StreamWriter _logWriter;
+        private readonly ConcurrentQueue<string> _outputBuffer = new();
+
+        public ManagedAppConfig Config => _config;
 
         public ManagedProcess(ManagedAppConfig config, ILogger logger)
         {
@@ -69,6 +73,8 @@ namespace SeerD.Services
                         var line = $"[OUT][{DateTime.Now:HH:mm:ss}] {e.Data}";
                         _logger.LogInformation($"[{_config.Name}] {e.Data}");
                         _logWriter.WriteLine(line);
+                        _outputBuffer.Enqueue(line);
+                        while (_outputBuffer.Count > 1000) _outputBuffer.TryDequeue(out _);
                     }
                 };
                 _process.ErrorDataReceived += (s, e) =>
@@ -78,6 +84,8 @@ namespace SeerD.Services
                         var line = $"[ERR][{DateTime.Now:HH:mm:ss}] {e.Data}";
                         _logger.LogError($"[{_config.Name}] {e.Data}");
                         _logWriter.WriteLine(line);
+                        _outputBuffer.Enqueue(line);
+                        while (_outputBuffer.Count > 1000) _outputBuffer.TryDequeue(out _);
                     }
                 };
                 _process.Exited += async (s, e) =>
@@ -132,6 +140,14 @@ namespace SeerD.Services
         {
             await StopAsync();
             await StartAsync(_cts?.Token ?? CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Retorna as últimas linhas do output do app.
+        /// </summary>
+        public string GetRecentOutput()
+        {
+            return string.Join(Environment.NewLine, _outputBuffer);
         }
     }
 }

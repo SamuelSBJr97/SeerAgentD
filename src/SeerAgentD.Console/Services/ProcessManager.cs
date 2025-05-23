@@ -21,6 +21,9 @@ namespace SeerD.Services
             LoadConfig();
         }
 
+        // Construtor para modo console sem logger
+        public ProcessManager() : this(new ConsoleLogger<ProcessManager>()) { }
+
         private void LoadConfig()
         {
             var configPath = Path.Combine(AppContext.BaseDirectory, "apps-config.json");
@@ -67,5 +70,7 @@ namespace SeerD.Services
             if (proc != null)
                 await proc.SendCommandAsync(command);
         }
+
+        public List<ManagedProcess> GetManagedApps() => _processes;
     }
 }
