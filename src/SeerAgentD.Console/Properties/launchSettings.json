@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SeerAgentD.Console": {
+      "commandName": "Project",
+      "commandLineArgs": "--console"
+    }
+  }
+}
