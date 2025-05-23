@@ -15,7 +15,7 @@ namespace SeerD
                     logging.ClearProviders();
                     logging.AddConsole();
                     logging.AddFile(
-                        @"C:\ProgramData\SeerD\Logs\seer.log"
+                        Path.Combine(AppContext.BaseDirectory, "Logs", "seer.log")
                     );
                 })
                 .ConfigureServices((hostContext, services) =>

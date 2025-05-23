@@ -17,6 +17,7 @@ namespace SeerD.Services
         private readonly ILogger _logger;
         private Process _process;
         private CancellationTokenSource _cts;
+        private StreamWriter _logWriter;
 
         public ManagedProcess(ManagedAppConfig config, ILogger logger)
         {
@@ -35,6 +36,19 @@ namespace SeerD.Services
         {
             try
             {
+                // Garante que o diretório de trabalho existe
+                Directory.CreateDirectory(_config.WorkingDirectory);
+
+                // Cria arquivo de log no WorkingDirectory do app
+                var logFile = Path.Combine(
+                    _config.WorkingDirectory,
+                    $"{_config.Name}_{DateTime.Now:yyyyMMdd_HHmmss}.log"
+                );
+                _logWriter = new StreamWriter(logFile, append: true, encoding: Encoding.UTF8)
+                {
+                    AutoFlush = true
+                };
+
                 var psi = new ProcessStartInfo
                 {
                     FileName = _config.ExecutablePath,
@@ -48,12 +62,31 @@ namespace SeerD.Services
                 };
 
                 _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-                _process.OutputDataReceived += (s, e) => { if (e.Data != null) _logger.LogInformation($"[{_config.Name}] {e.Data}"); };
-                _process.ErrorDataReceived += (s, e) => { if (e.Data != null) _logger.LogError($"[{_config.Name}] {e.Data}"); };
-                _process.Exited += (s, e) =>
+                _process.OutputDataReceived += (s, e) =>
+                {
+                    if (e.Data != null)
+                    {
+                        var line = $"[OUT][{DateTime.Now:HH:mm:ss}] {e.Data}";
+                        _logger.LogInformation($"[{_config.Name}] {e.Data}");
+                        _logWriter.WriteLine(line);
+                    }
+                };
+                _process.ErrorDataReceived += (s, e) =>
+                {
+                    if (e.Data != null)
+                    {
+                        var line = $"[ERR][{DateTime.Now:HH:mm:ss}] {e.Data}";
+                        _logger.LogError($"[{_config.Name}] {e.Data}");
+                        _logWriter.WriteLine(line);
+                    }
+                };
+                _process.Exited += async (s, e) =>
                 {
                     _logger.LogWarning($"[{_config.Name}] Processo finalizado inesperadamente. Reiniciando...");
-                    RestartAsync().ConfigureAwait(false);
+                    _logWriter?.WriteLine($"[SYS][{DateTime.Now:HH:mm:ss}] Processo finalizado inesperadamente. Reiniciando...");
+                    _logWriter?.Flush();
+                    _logWriter?.Close();
+                    await RestartAsync();
                 };
 
                 _process.Start();
@@ -63,6 +96,9 @@ namespace SeerD.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Erro ao iniciar o processo {_config.Name}");
+                _logWriter?.WriteLine($"[SYS][{DateTime.Now:HH:mm:ss}] Erro ao iniciar o processo: {ex}");
+                _logWriter?.Flush();
+                _logWriter?.Close();
             }
         }
 
