@@ -12,14 +12,13 @@ namespace SeerD.Services
     /// <summary>
     /// Gerencia o ciclo de vida de um processo individual.
     /// </summary>
-    public class ManagedProcess
+    public class ManagedProcess : IDisposable
     {
         private readonly ManagedAppConfig _config;
         private readonly ILogger _logger;
-        private Process _process;
+        private Process? _process;
         private CancellationTokenSource _cts;
         private StreamWriter _logWriter;
-        private readonly ConcurrentQueue<string> _outputBuffer = new();
 
         public ManagedAppConfig Config => _config;
 
@@ -33,10 +32,17 @@ namespace SeerD.Services
         {
             _cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
 
-            await Task.Run(() => StartProcess(), _cts.Token);
+            try
+            {
+                await Task.Run(StartProcess, _cts.Token);
+            }
+            catch (TaskCanceledException)
+            {
+                Console.WriteLine("Processo cancelado pelo token de cancelamento.");
+            }
         }
 
-        private void StartProcess()
+        private async void StartProcess()
         {
             try
             {
@@ -66,6 +72,7 @@ namespace SeerD.Services
                 };
 
                 _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+
                 _process.OutputDataReceived += (s, e) =>
                 {
                     if (e.Data != null)
@@ -73,8 +80,6 @@ namespace SeerD.Services
                         var line = $"[OUT][{DateTime.Now:HH:mm:ss}] {e.Data}";
                         _logger.LogInformation($"[{_config.Name}] {e.Data}");
                         _logWriter.WriteLine(line);
-                        _outputBuffer.Enqueue(line);
-                        while (_outputBuffer.Count > 1000) _outputBuffer.TryDequeue(out _);
                     }
                 };
                 _process.ErrorDataReceived += (s, e) =>
@@ -84,8 +89,6 @@ namespace SeerD.Services
                         var line = $"[ERR][{DateTime.Now:HH:mm:ss}] {e.Data}";
                         _logger.LogError($"[{_config.Name}] {e.Data}");
                         _logWriter.WriteLine(line);
-                        _outputBuffer.Enqueue(line);
-                        while (_outputBuffer.Count > 1000) _outputBuffer.TryDequeue(out _);
                     }
                 };
                 _process.Exited += async (s, e) =>
@@ -94,12 +97,15 @@ namespace SeerD.Services
                     _logWriter?.WriteLine($"[SYS][{DateTime.Now:HH:mm:ss}] Processo finalizado inesperadamente. Reiniciando...");
                     _logWriter?.Flush();
                     _logWriter?.Close();
-                    await RestartAsync();
+
+                    await Task.CompletedTask; // Placeholder para lógica adicional após a saída do processo
                 };
 
                 _process.Start();
                 _process.BeginOutputReadLine();
                 _process.BeginErrorReadLine();
+
+                await Task.CompletedTask;
             }
             catch (Exception ex)
             {
@@ -128,7 +134,11 @@ namespace SeerD.Services
                 {
                     _process.Kill(true);
                     await _process.WaitForExitAsync();
+                    // faz o encerramento completo do processo
+                    _process.Dispose();
+                    _process = null;
                 }
+                _cts?.TryReset();
             }
             catch (Exception ex)
             {
@@ -142,12 +152,48 @@ namespace SeerD.Services
             await StartAsync(_cts?.Token ?? CancellationToken.None);
         }
 
-        /// <summary>
-        /// Retorna as últimas linhas do output do app.
-        /// </summary>
-        public string GetRecentOutput()
+        public async Task ShowAppMenuAsync()
         {
-            return string.Join(Environment.NewLine, _outputBuffer);
+            if (_process == null)
+            {
+                Console.WriteLine("Processo não iniciado.");
+                return;
+            }
+
+            Console.WriteLine("Informações do processo:");
+            Console.WriteLine($"Id: {_process.Id}");
+            Console.WriteLine($"ProcessName: {_process.ProcessName}");
+            Console.WriteLine($"HasExited: {_process.HasExited}");
+            Console.WriteLine($"StartTime: {(_process.HasExited ? "N/A" : _process.StartTime.ToString())}");
+            Console.WriteLine($"TotalProcessorTime: {(_process.HasExited ? "N/A" : _process.TotalProcessorTime.ToString())}");
+            Console.WriteLine($"MainWindowTitle: {_process.MainWindowTitle}");
+            Console.WriteLine($"MainModule: {(_process.HasExited ? "N/A" : _process.MainModule?.FileName)}");
+            Console.WriteLine($"Responding: {_process.Responding}");
+            Console.WriteLine($"Threads: {_process.Threads.Count}");
+            Console.WriteLine($"WorkingSet64: {_process.WorkingSet64}");
+            Console.WriteLine($"PagedMemorySize64: {_process.PagedMemorySize64}");
+            Console.WriteLine($"VirtualMemorySize64: {_process.VirtualMemorySize64}");
+            Console.WriteLine($"StartInfo: {_process.StartInfo.FileName} {_process.StartInfo.Arguments}");
+            Console.WriteLine($"EnableRaisingEvents: {_process.EnableRaisingEvents}");
+            Console.WriteLine($"ExitCode: {(_process.HasExited ? _process.ExitCode.ToString() : "N/A")}");
+            Console.WriteLine($"ExitTime: {(_process.HasExited ? _process.ExitTime.ToString() : "N/A")}");
+            Console.WriteLine($"MachineName: {_process.MachineName}");
+            Console.WriteLine($"SessionId: {_process.SessionId}");
+            Console.WriteLine($"PriorityClass: {(_process.HasExited ? "N/A" : _process.PriorityClass.ToString())}");
+            Console.WriteLine($"BasePriority: {_process.BasePriority}");
+            Console.WriteLine($"Handle: {_process.Handle}");
+            Console.WriteLine($"HandleCount: {_process.HandleCount}");
+            Console.WriteLine($"UserProcessorTime: {(_process.HasExited ? "N/A" : _process.UserProcessorTime.ToString())}");
+            Console.WriteLine($"PrivilegedProcessorTime: {(_process.HasExited ? "N/A" : _process.PrivilegedProcessorTime.ToString())}");
+
+            await Task.CompletedTask;
+        }
+
+        public void Dispose()
+        {
+            _process.Dispose();
+
+            GC.SuppressFinalize(this);
         }
     }
 }

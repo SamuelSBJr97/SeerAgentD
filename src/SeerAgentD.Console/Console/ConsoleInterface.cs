@@ -24,17 +24,21 @@ namespace SeerAgentD.Console.Console
             {
                 System.Console.Clear();
                 System.Console.WriteLine("=== SeerD - Gerenciador de Apps ===");
+
                 for (int i = 0; i < apps.Count; i++)
                     System.Console.WriteLine($"{i + 1}. {apps[i].Config.Name}");
-
                 System.Console.WriteLine("0. Sair");
                 System.Console.Write("Selecione um app para gerenciar: ");
+
                 var input = await ReadLineAsync();
+
                 if (!int.TryParse(input, out int idx) || idx < 0 || idx > apps.Count)
                     continue;
+
                 if (idx == 0) break;
 
                 var app = apps[idx - 1];
+
                 await ShowAppMenuAsync(app);
             }
         }
@@ -45,11 +49,15 @@ namespace SeerAgentD.Console.Console
             {
                 System.Console.Clear();
                 System.Console.WriteLine($"=== {app.Config.Name} ===");
+                await app.ShowAppMenuAsync();
+                System.Console.WriteLine($"=== {app.Config.Name} ===");
                 System.Console.WriteLine("1. Ver output (últimas linhas do log)");
                 System.Console.WriteLine("2. Enviar comando");
                 System.Console.WriteLine("3. Parar app");
                 System.Console.WriteLine("4. Reiniciar app");
                 System.Console.WriteLine("0. Voltar");
+                System.Console.WriteLine($"=== {app.Config.Name} ===");
+
                 System.Console.Write("Escolha: ");
                 var op = await ReadLineAsync();
                 if (op == "0") break;
@@ -83,14 +91,16 @@ namespace SeerAgentD.Console.Console
                     await app.StopAsync();
                     System.Console.WriteLine("App parado. Pressione qualquer tecla...");
                     System.Console.ReadKey();
+                    break;
                 }
                 else if (op == "4")
                 {
                     await app.RestartAsync();
                     System.Console.WriteLine("App reiniciado. Pressione qualquer tecla...");
-                    System.Console.ReadKey();
                 }
             }
+
+            await Task.CompletedTask;
         }
 
         // Leitura assíncrona de entrada do usuário, sem bloquear thread principal
@@ -99,5 +109,4 @@ namespace SeerAgentD.Console.Console
             return Task.Run(() => System.Console.ReadLine() ?? string.Empty);
         }
     }
-
 }
