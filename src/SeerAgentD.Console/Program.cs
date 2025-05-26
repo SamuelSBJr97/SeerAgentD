@@ -38,9 +38,6 @@ namespace SeerAgentD.Console
                     {
                         logging.ClearProviders();
                         logging.AddConsole();
-                        logging.AddFile(
-                            Path.Combine(AppContext.BaseDirectory, "Logs", "seer.log")
-                        );
                     })
                     .ConfigureServices((hostContext, services) =>
                     {

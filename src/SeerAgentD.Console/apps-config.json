@@ -1,16 +1,10 @@
 {
   "Apps": [
     {
-      "Name": "App1",
-      "ExecutablePath": "C:\\Users\\samue\\source\\repos\\SamuelSBJr97\\SeerAgentD\\src\\SeerAgendD.Console.Example\\bin\\Release\\net8.0\\publish\\app1\\SeerAgendD.Console.Example.exe",
-      "Arguments": "--mode=service",
-      "WorkingDirectory": "C:\\Users\\samue\\source\\repos\\SamuelSBJr97\\SeerAgentD\\src\\SeerAgendD.Console.Example\\bin\\Release\\net8.0\\publish\\app1"
-    },
-    {
-      "Name": "App2",
-      "ExecutablePath": "C:\\Users\\samue\\source\\repos\\SamuelSBJr97\\SeerAgentD\\src\\SeerAgendD.Console.Example\\bin\\Release\\net8.0\\publish\\app2\\SeerAgendD.Console.Example.exe",
+      "Name": "ExampleApp",
+      "ExecutablePath": "C:\\Users\\samue\\source\\repos\\SamuelSBJr97\\SeerAgentD\\src\\SeerAgendD.Console.Example\\bin\\Debug\\net8.0\\SeerAgendD.Console.Example.exe",
       "Arguments": "",
-      "WorkingDirectory": "C:\\Users\\samue\\source\\repos\\SamuelSBJr97\\SeerAgentD\\src\\SeerAgendD.Console.Example\\bin\\Release\\net8.0\\publish\\app2"
+      "WorkingDirectory": "C:\\Users\\samue\\source\\repos\\SamuelSBJr97\\SeerAgentD\\src\\SeerAgendD.Console.Example\\bin\\Debug\\net8.0"
     }
   ]
 }

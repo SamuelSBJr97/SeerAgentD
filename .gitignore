@@ -361,3 +361,21 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# Cursor Editor
+.cursor/
+.cursor-cache/
+.cursor-server/
+.cursor.json
+.cursor-root/
+.vscode/launch.json
+.vscode/tasks.json
