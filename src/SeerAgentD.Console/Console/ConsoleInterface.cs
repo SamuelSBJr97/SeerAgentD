@@ -1,4 +1,5 @@
-﻿using SeerD.Services;
+﻿using SeerAgentD.Core.Interfaces;
+using SeerAgentD.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,103 +11,122 @@ namespace SeerAgentD.Console.Console
     /// <summary>
     /// Interface de texto reativa para gerenciamento dos apps.
     /// </summary>
-    public static class ConsoleInterface
+    internal static class ConsoleInterface
     {
-        public static async Task RunAsync(ProcessManager manager)
+        public static async Task RunAsync(IProcessMonitor processMonitor)
         {
-            await ShowMenuAsync(manager);
-        }
+            System.Console.WriteLine("SeerAgentD Console Interface");
+            System.Console.WriteLine("Commands:");
+            System.Console.WriteLine("  start <name> <path> [args] [workdir] - Start monitoring a process");
+            System.Console.WriteLine("  stop <name>                          - Stop monitoring a process");
+            System.Console.WriteLine("  list                                 - List all monitored processes");
+            System.Console.WriteLine("  info <name>                         - Show detailed process info");
+            System.Console.WriteLine("  exit                                - Exit the application");
+            System.Console.WriteLine();
 
-        private static async Task ShowMenuAsync(ProcessManager manager)
-        {
-            var apps = manager.GetManagedApps();
+            processMonitor.ProcessStatusChanged += (sender, info) =>
+            {
+                System.Console.WriteLine($"Process {info.Name} status changed to {info.Status}");
+            };
+
             while (true)
             {
-                System.Console.Clear();
-                System.Console.WriteLine("=== SeerD - Gerenciador de Apps ===");
+                System.Console.Write("> ");
+                var command = System.Console.ReadLine()?.Trim();
+                if (string.IsNullOrEmpty(command)) continue;
 
-                for (int i = 0; i < apps.Count; i++)
-                    System.Console.WriteLine($"{i + 1}. {apps[i].Config.Name}");
-                System.Console.WriteLine("0. Sair");
-                System.Console.Write("Selecione um app para gerenciar: ");
+                var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0) continue;
 
-                var input = await ReadLineAsync();
-
-                if (!int.TryParse(input, out int idx) || idx < 0 || idx > apps.Count)
-                    continue;
-
-                if (idx == 0) break;
-
-                var app = apps[idx - 1];
-
-                await ShowAppMenuAsync(app);
-            }
-        }
-
-        private static async Task ShowAppMenuAsync(ManagedProcess app)
-        {
-            while (true)
-            {
-                System.Console.Clear();
-                System.Console.WriteLine($"=== {app.Config.Name} ===");
-                await app.ShowAppMenuAsync();
-                System.Console.WriteLine($"=== {app.Config.Name} ===");
-                System.Console.WriteLine("1. Ver output (últimas linhas do log)");
-                System.Console.WriteLine("2. Enviar comando");
-                System.Console.WriteLine("3. Parar app");
-                System.Console.WriteLine("4. Reiniciar app");
-                System.Console.WriteLine("0. Voltar");
-                System.Console.WriteLine($"=== {app.Config.Name} ===");
-
-                System.Console.Write("Escolha: ");
-                var op = await ReadLineAsync();
-                if (op == "0") break;
-                if (op == "1")
+                try
                 {
-                    System.Console.Clear();
-                    var logPath = Directory.GetFiles(app.Config.WorkingDirectory, $"{app.Config.Name}_*.log")
-                        .OrderByDescending(f => f)
-                        .FirstOrDefault();
-                    if (logPath != null)
+                    switch (parts[0].ToLower())
                     {
-                        var lines = File.ReadLines(logPath).Reverse().Take(40).Reverse();
-                        foreach (var line in lines)
-                            System.Console.WriteLine(line);
+                        case "start":
+                            if (parts.Length < 3)
+                            {
+                                System.Console.WriteLine("Usage: start <name> <path> [args] [workdir]");
+                                continue;
+                            }
+                            var args = parts.Length > 3 ? parts[3] : "";
+                            var workdir = parts.Length > 4 ? parts[4] : "";
+                            await processMonitor.StartMonitoringAsync(parts[1], parts[2], args, workdir);
+                            break;
+
+                        case "stop":
+                            if (parts.Length < 2)
+                            {
+                                System.Console.WriteLine("Usage: stop <name>");
+                                continue;
+                            }
+                            await processMonitor.StopMonitoringAsync(parts[1]);
+                            break;
+
+                        case "list":
+                            var processes = await processMonitor.GetAllProcessesInfoAsync();
+                            if (!processes.Any())
+                            {
+                                System.Console.WriteLine("No processes are currently being monitored.");
+                            }
+                            else
+                            {
+                                foreach (var process in processes)
+                                {
+                                    System.Console.WriteLine(
+                                        $"{process.Name} (ID: {process.ProcessId}) - Status: {process.Status}, " +
+                                        $"CPU: {process.CpuUsage:F2}ms, Memory: {process.MemoryUsage / 1024 / 1024}MB"
+                                    );
+                                }
+                            }
+                            break;
+
+                        case "info":
+                            if (parts.Length < 2)
+                            {
+                                System.Console.WriteLine("Usage: info <name>");
+                                continue;
+                            }
+                            var processInfo = await processMonitor.GetProcessInfoAsync(parts[1]);
+                            if (processInfo != null)
+                            {
+                                System.Console.WriteLine($"Name: {processInfo.Name}");
+                                System.Console.WriteLine($"Process ID: {processInfo.ProcessId}");
+                                System.Console.WriteLine($"Status: {processInfo.Status}");
+                                System.Console.WriteLine($"Executable: {processInfo.ExecutablePath}");
+                                System.Console.WriteLine($"Arguments: {processInfo.Arguments}");
+                                System.Console.WriteLine($"Working Directory: {processInfo.WorkingDirectory}");
+                                System.Console.WriteLine($"Start Time: {processInfo.StartTime}");
+                                System.Console.WriteLine($"CPU Usage: {processInfo.CpuUsage:F2}ms");
+                                System.Console.WriteLine($"Memory Usage: {processInfo.MemoryUsage / 1024 / 1024}MB");
+                            }
+                            else
+                            {
+                                System.Console.WriteLine($"Process {parts[1]} not found");
+                            }
+                            break;
+
+                        case "help":
+                            System.Console.WriteLine("Available commands:");
+                            System.Console.WriteLine("  start <name> <path> [args] [workdir] - Start monitoring a process");
+                            System.Console.WriteLine("  stop <name>                          - Stop monitoring a process");
+                            System.Console.WriteLine("  list                                 - List all monitored processes");
+                            System.Console.WriteLine("  info <name>                         - Show detailed process info");
+                            System.Console.WriteLine("  exit                                - Exit the application");
+                            break;
+
+                        case "exit":
+                            return;
+
+                        default:
+                            System.Console.WriteLine("Unknown command. Type 'help' for available commands.");
+                            break;
                     }
-                    else
-                    {
-                        System.Console.WriteLine("Nenhum log encontrado.");
-                    }
-                    System.Console.WriteLine("\nPressione qualquer tecla para voltar...");
-                    System.Console.ReadKey();
                 }
-                else if (op == "2")
+                catch (Exception ex)
                 {
-                    System.Console.Write("Digite o comando: ");
-                    var cmd = await ReadLineAsync();
-                    await app.SendCommandAsync(cmd);
-                }
-                else if (op == "3")
-                {
-                    await app.StopAsync();
-                    System.Console.WriteLine("App parado. Pressione qualquer tecla...");
-                    System.Console.ReadKey();
-                    break;
-                }
-                else if (op == "4")
-                {
-                    await app.RestartAsync();
-                    System.Console.WriteLine("App reiniciado. Pressione qualquer tecla...");
+                    System.Console.WriteLine($"Error: {ex.Message}");
                 }
             }
-
-            await Task.CompletedTask;
-        }
-
-        // Leitura assíncrona de entrada do usuário, sem bloquear thread principal
-        private static Task<string> ReadLineAsync()
-        {
-            return Task.Run(() => System.Console.ReadLine() ?? string.Empty);
         }
     }
 }

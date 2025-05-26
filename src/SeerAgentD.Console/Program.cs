@@ -1,16 +1,17 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SeerD.Services;
+using SeerAgentD.Console.Console;
+using SeerAgentD.Console.Services;
+using SeerAgentD.Core.Interfaces;
+using SeerAgentD.Core.Services;
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using SeerAgentD.Console.Console;
-using SeerAgentD.Console.Services;
 
-namespace SeerD
+namespace SeerAgentD.Console
 {
     internal static class Program
     {
@@ -18,16 +19,21 @@ namespace SeerD
         {
             if (args.Contains("--console"))
             {
-                var processManager = new ProcessManager(new ConsoleLogger<ProcessManager>());
-                await processManager.StartAllAsync(default);
+                var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+                var processMonitor = new ProcessMonitor(loggerFactory.CreateLogger<ProcessMonitor>());
 
-                await ConsoleInterface.RunAsync(processManager);
-
-                await processManager.StopAllAsync();
+                try
+                {
+                    await ConsoleInterface.RunAsync(processMonitor);
+                }
+                finally
+                {
+                    (processMonitor as IDisposable)?.Dispose();
+                }
             }
             else
             {
-                Host.CreateDefaultBuilder(args)
+                var host = Host.CreateDefaultBuilder(args)
                     .ConfigureLogging((context, logging) =>
                     {
                         logging.ClearProviders();
@@ -38,11 +44,12 @@ namespace SeerD
                     })
                     .ConfigureServices((hostContext, services) =>
                     {
-                        services.AddSingleton<ProcessManager>();
+                        services.AddSingleton<IProcessMonitor, ProcessMonitor>();
                         services.AddHostedService<Worker>();
                     })
-                    .Build()
-                    .Run();
+                    .Build();
+
+                await host.RunAsync();
             }
         }
     }
